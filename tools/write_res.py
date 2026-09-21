@@ -20,7 +20,6 @@ w("xml/file_paths.xml", HEAD + """<paths>
 
 w("values/strings.xml", HEAD + """<resources>
     <string name="app_name">SubRead</string>
-    <string name="recents">Recent apps</string>
 </resources>
 """)
 
@@ -54,7 +53,6 @@ def vector(size: int, paths: list[tuple[str, str]]) -> str:
 
 
 w("drawable/ic_launcher_foreground.xml", vector(108, [("#000000", BOOK), ("#FFFFFF", WAVE)]))
-w("drawable/ic_notification.xml", vector(24, [("#FFFFFF", BOOK)]))
 
 for name in ("ic_launcher", "ic_launcher_round"):
     w(f"mipmap-anydpi-v26/{name}.xml", HEAD + """<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">

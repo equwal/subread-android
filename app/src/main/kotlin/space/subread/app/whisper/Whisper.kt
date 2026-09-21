@@ -35,7 +35,7 @@ class Whisper private constructor(private var ptr: Long) : AutoCloseable {
     fun transcribe(samples: FloatArray, language: String, offset: Double): List<TranscriptSegment> {
         when (val rc = WhisperLib.transcribe(ptr, samples, threads, language)) {
             0 -> {}
-            -1 -> throw TranscriptionCancelled()
+            1000 -> throw TranscriptionCancelled()
             else -> throw WhisperUnavailable("The speech model failed on this audio (code $rc).")
         }
         return (0 until WhisperLib.segmentCount(ptr)).mapNotNull { i ->

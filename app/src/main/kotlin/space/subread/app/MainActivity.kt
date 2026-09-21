@@ -26,7 +26,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -47,8 +46,6 @@ import space.subread.app.job.Job
 import space.subread.app.job.JobStatus
 import space.subread.app.job.Phase
 import space.subread.app.job.TranscriptStore
-import space.subread.app.recents.RecentApps
-import space.subread.app.recents.RecentsActivity
 import java.io.File
 import kotlin.concurrent.thread
 
@@ -180,37 +177,6 @@ private fun App() {
                         onShare = { status.srt?.let { share(context, it) } })
                 }
 
-                HorizontalDivider(color = Color.Black)
-                RecentsSetting()
-            }
-        }
-    }
-}
-
-/** Nothing to do with subtitles: an optional recent-apps switcher, off unless asked for. */
-@Composable
-private fun RecentsSetting() {
-    val context = LocalContext.current
-    var on by remember { mutableStateOf(RecentApps.isEnabled(context)) }
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Switch(checked = on, onCheckedChange = {
-                on = it
-                RecentApps.setEnabled(context, it)
-                if (it && !RecentApps.hasAccess(context)) {
-                    context.startActivity(Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS))
-                }
-            })
-            Text("Recent apps switcher", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-        }
-        Text(
-            "Adds a \"Recent apps\" icon and a quick-settings tile that show your recent apps as cards to " +
-                "swipe through. It needs usage access, which you grant on the screen that opens.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        if (on) {
-            OutlinedButton(onClick = { context.startActivity(Intent(context, RecentsActivity::class.java)) }) {
-                Text("Open it now")
             }
         }
     }

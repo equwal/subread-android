@@ -40,6 +40,8 @@ object Job {
     @Volatile private var cancelled = false
 
     fun cancel() {
+        // The stack shows who asked. A stop with no visible cause is hard to find without it.
+        android.util.Log.i("SubRead", "stop requested", Throwable())
         cancelled = true
         Whisper.cancel()
     }

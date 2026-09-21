@@ -51,7 +51,7 @@ JNI_FN(freeContext)(JNIEnv *env, jobject thiz, jlong ptr) {
     if (ptr != 0) whisper_free((struct whisper_context *) ptr);
 }
 
-// Returns 0 on success, -1 if cancelled, anything else is whisper's own error.
+// Returns 0 on success, 1000 if cancelled, anything else is whisper's own error.
 JNIEXPORT jint JNICALL
 JNI_FN(transcribe)(JNIEnv *env, jobject thiz, jlong ptr, jfloatArray samples,
                    jint n_threads, jstring language) {
@@ -88,7 +88,7 @@ JNI_FN(transcribe)(JNIEnv *env, jobject thiz, jlong ptr, jfloatArray samples,
     (*env)->ReleaseStringUTFChars(env, language, lang);
     (*env)->ReleaseFloatArrayElements(env, samples, pcm, JNI_ABORT);
 
-    if (atomic_load(&g_abort)) return -1;
+    if (atomic_load(&g_abort)) return 1000;
     if (rc != 0) LOGW("whisper_full failed: %d", rc);
     return rc;
 }
