@@ -95,6 +95,9 @@ gh release create v0.2.0 app/build/outputs/apk/release/app-release.apk --notes "
 
 `versionCode` must go up every release, or Android refuses the update.
 
+Attach the APK two times: as `SubRead-<version>.apk`, and as `SubRead.apk`. Hoshi Reader
+installs SubRead from `releases/latest/download/SubRead.apk`, a link that needs no version.
+
 ### Google Play
 
 ```bash
