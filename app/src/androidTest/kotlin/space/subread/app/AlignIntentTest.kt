@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -65,6 +66,11 @@ class AlignIntentTest {
             compose.waitUntil(1_800_000) {
                 Job.status.value.phase == Phase.DONE || Job.status.value.phase == Phase.FAILED
             }
+            // A failed job stays on the screen for the user to read, so there is no answer to wait for.
+            assertEquals(Job.status.value.detail, Phase.DONE, Job.status.value.phase)
+            // The screen answers from its own update loop, and in a Compose test that loop runs
+            // only while the test asks the rule to wait. scenario.result alone would block it.
+            compose.waitUntil(60_000) { scenario.state == Lifecycle.State.DESTROYED }
             val result = scenario.result
             assertEquals(Job.status.value.detail, Activity.RESULT_OK, result.resultCode)
 
