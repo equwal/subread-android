@@ -18,3 +18,7 @@ app/src/androidTest/assets/local/
 
 # Python byte code
 __pycache__/
+
+# Crash logs of the JVM
+hs_err_pid*.log
+replay_pid*.log
