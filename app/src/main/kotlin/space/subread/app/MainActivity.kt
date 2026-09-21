@@ -148,6 +148,7 @@ private fun App() {
                         "that any video player plays.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                if (status.phase == Phase.IDLE) Capabilities()
                 HorizontalDivider(color = Color.Black)
 
                 Pick("Audiobook", audio?.let { TranscriptStore.describe(context, it).first }, !status.running) {
@@ -184,27 +185,55 @@ private fun App() {
                         },
                     ) { Text(if (resumable) "Continue" else "Start") }
 
-                    if (a == null || b == null) {
-                        Text("Pick both files to begin. A long book takes hours. Keep this app open: the " +
-                            "screen stays on while it works. If it is interrupted, Start continues from there.",
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                    Outcome(status, video,
-                        videoOptions = {
-                            Choice("Size", sizes.map { it to it.label }, videoSize) {
-                                videoSize = it
-                                prefs.edit { putString("video_size", it.label) }
-                            }
-                            Choice("Frames a second", VideoMaker.FRAME_RATES.map { it to "$it" }, videoFps) {
-                                videoFps = it
-                                prefs.edit { putInt("video_fps", it) }
-                            }
-                        },
-                        onSave = { status.srt?.let { saveSrt.launch(it.name) } },
-                        onShare = { status.srt?.let { share(context, it) } },
-                        onVideo = { pickVideoFolder.launch(null) })
+                    Outcome(status)
                 }
 
+                // Each output and its options, from the first screen on. The buttons
+                // wait for the job; a job takes hours, and nobody must run one to
+                // find out what the app makes.
+                HorizontalDivider(color = Color.Black)
+                Outputs(status, video,
+                    videoOptions = {
+                        Choice("Size", sizes.map { it to it.label }, videoSize) {
+                            videoSize = it
+                            prefs.edit { putString("video_size", it.label) }
+                        }
+                        Choice("Frames a second", VideoMaker.FRAME_RATES.map { it to "$it" }, videoFps) {
+                            videoFps = it
+                            prefs.edit { putInt("video_fps", it) }
+                        }
+                    },
+                    onSave = { status.srt?.let { saveSrt.launch(it.name) } },
+                    onShare = { status.srt?.let { share(context, it) } },
+                    onVideo = { pickVideoFolder.launch(null) })
+
+
+            }
+        }
+    }
+}
+
+@Composable
+private fun Capabilities() {
+    val named = LANGUAGES.drop(1).take(5).joinToString(", ") { it.second }
+    val sections = listOf(
+        "What it takes" to listOf(
+            "Audio: m4b, m4a, mp3, opus, ogg, flac, wav.",
+            "Book: epub, plain text, or an Aozora Bunko zip.",
+            "Language: $named and ${LANGUAGES.size - 6} more, or let the app detect it.",
+        ),
+        "How it works" to listOf(
+            "All on this device. No network, no account, no permissions.",
+            "The words come from the book, so there are no mistakes of a speech model in them. " +
+                "Pages that nobody reads aloud (front matter, notes) are left out.",
+            "A long book takes hours. Keep the app open. If it stops, Continue starts from where it was.",
+        ),
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        for ((title, lines) in sections) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                for (line in lines) Text("• $line", style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -275,10 +304,7 @@ private fun Progress(status: JobStatus) {
 }
 
 @Composable
-private fun Outcome(
-    status: JobStatus, video: VideoStatus, videoOptions: @Composable () -> Unit,
-    onSave: () -> Unit, onShare: () -> Unit, onVideo: () -> Unit,
-) {
+private fun Outcome(status: JobStatus) {
     when (status.phase) {
         Phase.DONE -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val rate = ((status.matchRate ?: 0.0) * 100).toInt()
@@ -291,35 +317,49 @@ private fun Outcome(
                 Text("${status.paragraphsDropped} paragraphs of the book were never narrated " +
                     "(front matter, notes) and were left out.", style = MaterialTheme.typography.bodySmall)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = onSave) { Text("Save .srt") }
-                OutlinedButton(onClick = onShare) { Text("Share") }
-            }
-            Text("In Hoshi Reader: long-press the book, Match, and choose the saved .srt.",
-                style = MaterialTheme.typography.bodySmall)
-
-            HorizontalDivider(color = Color.Black)
-            Text("Video + subtitles", fontWeight = FontWeight.Bold)
-            Text("An .mp4 of the cover and the audio, with the .srt beside it. It plays with subtitles " +
-                "in any video player, and you can upload it to YouTube.", style = MaterialTheme.typography.bodySmall)
-            if (video.running) {
-                LinearProgressIndicator(
-                    progress = { video.fraction },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.Black, trackColor = Color(0xFFCCCCCC),
-                )
-                Text("Making the video: ${(video.fraction * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { videoOptions() }
-                Text("The picture is still, so more frames a second add almost nothing to the file. " +
-                    "A larger size adds a little.", style = MaterialTheme.typography.bodySmall)
-                OutlinedButton(onClick = onVideo) { Text("Save video + .srt") }
-                if (video.message.isNotEmpty()) Text(video.message, style = MaterialTheme.typography.bodySmall)
-            }
         }
         Phase.FAILED -> Text("Failed: ${status.detail}", fontWeight = FontWeight.Bold)
         Phase.CANCELLED -> Text(status.detail)
         else -> {}
+    }
+}
+
+/** What the app makes. The save buttons work when a job is done. */
+@Composable
+private fun Outputs(
+    status: JobStatus, video: VideoStatus, videoOptions: @Composable () -> Unit,
+    onSave: () -> Unit, onShare: () -> Unit, onVideo: () -> Unit,
+) {
+    val done = status.phase == Phase.DONE && status.srt != null
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Subtitles (.srt)", fontWeight = FontWeight.Bold)
+        Text("Each line of the book with the time it is read. In Hoshi Reader: long-press the book, " +
+            "Match, and choose the saved .srt.", style = MaterialTheme.typography.bodySmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(onClick = onSave, enabled = done) { Text("Save .srt") }
+            OutlinedButton(onClick = onShare, enabled = done) { Text("Share") }
+        }
+
+        HorizontalDivider(color = Color.Black)
+        Text("Video + subtitles", fontWeight = FontWeight.Bold)
+        Text("An .mp4 of the cover and the audio, with the .srt beside it. It plays with subtitles " +
+            "in any video player, and you can upload it to YouTube.", style = MaterialTheme.typography.bodySmall)
+        if (video.running) {
+            LinearProgressIndicator(
+                progress = { video.fraction },
+                modifier = Modifier.fillMaxWidth(),
+                color = Color.Black, trackColor = Color(0xFFCCCCCC),
+            )
+            Text("Making the video: ${(video.fraction * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { videoOptions() }
+            Text("The picture is still, so more frames a second add almost nothing to the file " +
+                "(about 60 MB of video for a 10-hour book). A larger size adds a little.",
+                style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = onVideo, enabled = done) { Text("Save video + .srt") }
+            if (video.message.isNotEmpty()) Text(video.message, style = MaterialTheme.typography.bodySmall)
+        }
+        if (!done) Text("The save buttons work when the job is done.", style = MaterialTheme.typography.bodySmall)
     }
 }
 
