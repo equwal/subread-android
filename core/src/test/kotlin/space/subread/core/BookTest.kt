@@ -129,6 +129,23 @@ class BookTest {
         )
     }
 
+    /**
+     * Found on a real device: two thirds of a real epub disappeared, and the
+     * subtitles got text from the wrong passage. An HTML parser takes a
+     * self-closing <title/> as an open title, reads the start of the page as
+     * its text, and the first paragraphs are lost. The page must be large for
+     * the defect to show: a small page parses correctly.
+     */
+    @Test
+    fun aSelfClosingTitleDoesNotSwallowTheStartOfALargePage() {
+        val paragraphs = (1..120).map { n -> "Paragraph $n. " + "word ".repeat(40).trim() }
+        val bytes = epub("a.xhtml" to
+            "<?xml version='1.0' encoding='UTF-8'?><html xmlns='http://www.w3.org/1999/xhtml'><head><title/>" +
+            "<link rel='stylesheet' href='s.css' type='text/css'/></head><body><span id='x'>" +
+            paragraphs.joinToString("") { "<p class='p1'>$it</p>" } + "</span></body></html>")
+        assertEquals(paragraphs, BookText.read(ByteArrayInputStream(bytes), "x.epub"))
+    }
+
     @Test
     fun epubWithoutAUsablePackageFileStillYieldsItsText() {
         val bytes = epub("b.html" to page("<p>two</p>"), "a.html" to page("<p>one</p>"))

@@ -22,6 +22,7 @@ android {
         targetSdk = 36
         versionCode = (providers.gradleProperty("versionCode").orNull ?: "1").toInt()
         versionName = providers.gradleProperty("versionName").orNull ?: "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Every phone worth transcribing on is 64-bit ARM; the speech library
         // is built for ARMv8.2 specifically (see src/main/cpp/CMakeLists.txt).
@@ -82,4 +83,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.coroutines.android)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.junit)
 }

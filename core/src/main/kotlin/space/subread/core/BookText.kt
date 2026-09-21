@@ -73,15 +73,20 @@ object BookText {
     }
 
     private fun page(bytes: ByteArray): List<String> {
-        val doc = Jsoup.parse(String(bytes, Charsets.UTF_8))
+        // An epub page is XHTML, so read it as XML first. To an HTML parser a
+        // self-closing <title/> never closes, and it takes the whole page as the
+        // title text. The HTML parser stays as the fallback for malformed pages.
+        val source = String(bytes, Charsets.UTF_8)
+        val xml = Jsoup.parse(source, "", Parser.xmlParser())
+        val doc = if (xml.selectFirst("body") != null) xml else Jsoup.parse(source)
         // Furigana would otherwise be read twice: once as kanji, once as kana.
         doc.select("rt, rp").remove()
-        val body = doc.body()
+        val body = doc.selectFirst("body") ?: doc
         val blocks = body.select(BLOCKS)
             // A quote holding paragraphs would yield its text twice; keep the leaves.
             .filter { it.select(BLOCKS).size == 1 }
-        val source = if (blocks.isEmpty()) listOf(body) else blocks
-        return source.map { it.text().trim() }.filter { it.isNotEmpty() }
+        val parts = if (blocks.isEmpty()) listOf(body) else blocks
+        return parts.map { it.text().trim() }.filter { it.isNotEmpty() }
     }
 
     // ---------------------------------------------------------------- aozora

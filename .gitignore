@@ -12,5 +12,8 @@ captures/
 # that generated them. Tests skip this directory when it is missing.
 core/src/test/resources/golden-local/
 
+# On-device test media. Bring your own pair; the test skips without it.
+app/src/androidTest/assets/local/
+
 # Downloaded at build time, never committed.
 app/src/main/assets/models/
