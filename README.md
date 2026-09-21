@@ -8,6 +8,11 @@ It also makes **videos + subtitles which can be played with any video player or
 uploaded to YouTube**: an `.mp4` of the book's cover and the audio, with the
 `.srt` beside it under the same name.
 
+<p>
+  <img src="docs/screenshots/1-pick.png" width="300" alt="The first screen: what the app takes, how it works, and the two files to pick">
+  <img src="docs/screenshots/2-outputs.png" width="300" alt="The outputs: subtitles, and video + subtitles with its size and frame rate">
+</p>
+
 It is the same method as [subread.space](https://subread.space) and
 [SubPlz](https://github.com/kanjieater/SubPlz): a small speech model transcribes
 the audio, roughly; the transcript is aligned against the book; the subtitles
