@@ -2,7 +2,9 @@ package space.subread.app
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -30,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,9 +44,13 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.core.content.IntentCompat
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import space.subread.app.intent.AlignContract
+import space.subread.app.intent.AlignRequest
+import space.subread.app.intent.AlignRequests
 import space.subread.app.job.Job
 import space.subread.app.job.JobStatus
 import space.subread.app.job.Phase
@@ -55,9 +62,127 @@ import java.io.File
 import kotlin.concurrent.thread
 
 class MainActivity : ComponentActivity() {
+
+    /** The ask of another app, when one started this screen. Null on a normal start. */
+    private var ask by mutableStateOf<AlignRequest?>(null)
+
+    /** A word to the user about a second ask that arrived while a job runs. */
+    private var notice by mutableStateOf<String?>(null)
+
+    /** True when this screen started the job for [ask]. It survives a rotation. */
+    private var started = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { App() }
+        started = savedInstanceState?.getBoolean(STARTED) == true
+        val refused = savedInstanceState?.getString(REFUSED)
+        // A rotation must not turn a refusal into a second try.
+        if (refused != null) refuse(refused) else take(intent)
+        val asker = asker()
+        setContent { App(ask, notice, asker, ::answer) }
+    }
+
+    /** The screen is singleTop, so a second ask arrives here, not in a new screen. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (Job.status.value.running) {
+            // Refuse politely and keep the job. The job belongs to the ask before this one.
+            notice = "SubRead is busy with the job it runs now. The new ask was not taken."
+            return
+        }
+        setIntent(intent)
+        started = false
+        notice = null
+        take(intent)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STARTED, started)
+        (ask as? AlignRequest.Refused)?.let { outState.putString(REFUSED, it.error) }
+    }
+
+    /** Read the ask of another app and, if it is good, run the job for it. */
+    private fun take(from: Intent) {
+        if (from.action != AlignContract.ACTION) return
+        val audio = IntentCompat.getParcelableExtra(from, AlignContract.EXTRA_AUDIO, Uri::class.java)
+        val book = IntentCompat.getParcelableExtra(from, AlignContract.EXTRA_BOOK, Uri::class.java)
+        val state = Job.status.value
+        val read = AlignRequests.read(
+            audio?.toString(), book?.toString(), from.getStringExtra(AlignContract.EXTRA_LANGUAGE),
+            busy = !started && state.running,
+        )
+        if (read !is AlignRequest.Accepted) {
+            refuse((read as AlignRequest.Refused).error)
+            return
+        }
+        ask = read
+        keep(from, audio!!)
+        keep(from, book!!)
+        // Start at once: the other app sent the user here for this one job, the
+        // screen names the asker and the two files, and Stop is on it. After a
+        // rotation the job is already there, so do not start a second one.
+        if (!state.running && (!started || state.phase == Phase.IDLE)) {
+            started = true
+            Job.clear()
+            val app = applicationContext
+            val language = read.language
+            thread(name = "subread-job") { Job.run(app, audio, book, language) }
+        }
+    }
+
+    /** Say no, now, and stay on the screen so that the user can read why. */
+    private fun refuse(error: String) {
+        ask = AlignRequest.Refused(error)
+        setResult(RESULT_CANCELED, Intent().putExtra(AlignContract.EXTRA_ERROR, error))
+    }
+
+    /** Hold the permission when the caller offers it, so that a killed job can start again. */
+    private fun keep(from: Intent, uri: Uri) {
+        if (from.flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION == 0) return
+        runCatching {
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
+    /** Give the asking app its answer. [asked] is the language it asked for. */
+    private fun answer(status: JobStatus, asked: String) {
+        val srt = status.srt
+        if (status.phase != Phase.DONE || srt == null) {
+            // Back sends this. The screen stays, so the user can read the error.
+            val error = status.detail.ifEmpty { "The job failed." }
+            setResult(RESULT_CANCELED, Intent().putExtra(AlignContract.EXTRA_ERROR, error))
+            return
+        }
+        val uri = FileProvider.getUriForFile(this, "$packageName.files", srt)
+        setResult(
+            RESULT_OK,
+            Intent().setData(uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                .putExtra(AlignContract.EXTRA_CUES, status.cues)
+                .putExtra(AlignContract.EXTRA_MATCH_RATE, status.matchRate ?: 0.0)
+                .putExtra(AlignContract.EXTRA_LANGUAGE, AlignRequests.languageOf(srt.name, asked)),
+        )
+        finish()
+    }
+
+    /** The name of the app that asked, for the screen. */
+    private fun asker(): String {
+        val who = callingPackage ?: return "Another app"
+        return runCatching {
+            val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getApplicationInfo(who, PackageManager.ApplicationInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION") // The flags class is Android 13 and later.
+                packageManager.getApplicationInfo(who, 0)
+            }
+            packageManager.getApplicationLabel(info).toString()
+        }.getOrDefault(who)
+    }
+
+    private companion object {
+        const val STARTED = "ask_started"
+        const val REFUSED = "ask_refused"
     }
 }
 
@@ -84,14 +209,33 @@ private val LANGUAGES = listOf(
 )
 
 @Composable
-private fun App() {
+private fun App(
+    ask: AlignRequest? = null,
+    notice: String? = null,
+    asker: String = "",
+    onAnswer: (JobStatus, String) -> Unit = { _, _ -> },
+) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("picks", Context.MODE_PRIVATE) }
     val status by Job.status.collectAsStateWithLifecycle()
 
-    var audio by remember { mutableStateOf(prefs.getString("audio", null)?.let(Uri::parse)) }
-    var book by remember { mutableStateOf(prefs.getString("book", null)?.let(Uri::parse)) }
-    var language by remember { mutableStateOf(prefs.getString("language", "auto")!!) }
+    // An ask of another app gives the picks of this run only. What the user
+    // picked by hand stays in the preferences, untouched.
+    val accepted = ask as? AlignRequest.Accepted
+    var audio by remember(accepted) {
+        mutableStateOf(accepted?.audio?.toUri() ?: prefs.getString("audio", null)?.let(Uri::parse))
+    }
+    var book by remember(accepted) {
+        mutableStateOf(accepted?.book?.toUri() ?: prefs.getString("book", null)?.let(Uri::parse))
+    }
+    var language by remember(accepted) {
+        mutableStateOf(accepted?.language ?: prefs.getString("language", "auto")!!)
+    }
+    if (accepted != null) {
+        LaunchedEffect(accepted, status.phase) {
+            if (status.phase == Phase.DONE || status.phase == Phase.FAILED) onAnswer(status, accepted.language)
+        }
+    }
 
     fun keep(key: String, uri: Uri) {
         // So the pick survives the process being killed mid-job and can resume.
@@ -149,17 +293,26 @@ private fun App() {
                         "that any video player plays.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                if (status.phase == Phase.IDLE) Capabilities()
+                if (status.phase == Phase.IDLE && ask == null) Capabilities()
+                if (ask != null) {
+                    HorizontalDivider(color = Color.Black)
+                    Asked(asker, ask, notice,
+                        audio?.let { TranscriptStore.describe(context, it).first },
+                        book?.let { TranscriptStore.describe(context, it).first })
+                }
                 HorizontalDivider(color = Color.Black)
 
-                Pick("Audiobook", audio?.let { TranscriptStore.describe(context, it).first }, !status.running) {
+                // The two files of an ask belong to the app that asked. The user
+                // must not change them under it, so the buttons are off.
+                val canPick = !status.running && accepted == null
+                Pick("Audiobook", audio?.let { TranscriptStore.describe(context, it).first }, canPick) {
                     pickAudio.launch(arrayOf("audio/*", "video/mp4", "application/ogg", "application/octet-stream"))
                 }
-                Pick("Book", book?.let { TranscriptStore.describe(context, it).first }, !status.running) {
+                Pick("Book", book?.let { TranscriptStore.describe(context, it).first }, canPick) {
                     pickBook.launch(arrayOf("application/epub+zip", "text/plain", "application/zip",
                         "application/octet-stream"))
                 }
-                LanguagePick(language, !status.running) {
+                LanguagePick(language, canPick) {
                     language = it
                     prefs.edit().putString("language", it).apply()
                 }
@@ -211,6 +364,29 @@ private fun App() {
 
             }
         }
+    }
+}
+
+/** Who asked for subtitles, for which files, and what SubRead does with the ask. */
+@Composable
+private fun Asked(asker: String, ask: AlignRequest, notice: String?, audio: String?, book: String?) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        when (ask) {
+            is AlignRequest.Accepted -> {
+                Text("$asker asked for subtitles", fontWeight = FontWeight.Bold)
+                Text("Audio: ${audio ?: ask.audio}", style = MaterialTheme.typography.bodySmall)
+                Text("Book: ${book ?: ask.book}", style = MaterialTheme.typography.bodySmall)
+                Text("Language: ${ask.language}", style = MaterialTheme.typography.bodySmall)
+                Text("SubRead sends the .srt back to $asker when the job is done. " +
+                    "Stop, or Back, sends nothing.", style = MaterialTheme.typography.bodySmall)
+            }
+            is AlignRequest.Refused -> {
+                Text("$asker asked for subtitles, and SubRead cannot do it", fontWeight = FontWeight.Bold)
+                Text(ask.error, style = MaterialTheme.typography.bodySmall)
+                Text("Back returns to $asker with this error.", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        if (notice != null) Text(notice, style = MaterialTheme.typography.bodySmall)
     }
 }
 

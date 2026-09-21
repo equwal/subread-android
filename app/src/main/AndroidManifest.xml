@@ -17,6 +17,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Another app asks for the subtitles of a book. See docs/intent-api.md. -->
+            <intent-filter>
+                <action android:name="space.subread.app.action.ALIGN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
 
         <provider

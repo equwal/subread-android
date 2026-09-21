@@ -22,7 +22,8 @@ startActivityForResult(ask, REQUEST_SUBTITLES)        // or an ActivityResultLau
 
 Both Uris must be `content://` Uris that the calling app may grant (its own
 `FileProvider`, or a document Uri for which it holds a persisted permission).
-A `file://` Uri works only for a file that SubRead can read, so do not use one.
+SubRead refuses every other Uri, a `file://` Uri included: SubRead would read
+its own private files for the caller.
 
 One audio file for one book. A book in many audio files is not handled yet.
 
@@ -53,6 +54,11 @@ and Google Play when those listings are up).
 
 `RESULT_CANCELED`: the user went back, or the job failed.
 `space.subread.extra.ERROR` (`String`) says why when it failed.
+
+SubRead makes one set of subtitles at a time. An ask that arrives while a job
+runs is refused with `RESULT_CANCELED` and an `ERROR`; the job that runs is not
+touched. An ask with a file that is missing or is not a `content://` Uri is
+refused the same way, before any work starts.
 
 The job takes about a third of the length of the audio on a mid-range device.
 SubRead keeps what it has transcribed, so asking again for the same audio file

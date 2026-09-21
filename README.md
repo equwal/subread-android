@@ -18,6 +18,14 @@ It is the same method as [subread.space](https://subread.space) and
 the audio, roughly; the transcript is aligned against the book; the subtitles
 take their *timing* from the transcript and their *words* from the book.
 
+## Other apps
+
+A reader or an audiobook player can ask SubRead for the `.srt` of a book and get
+the file back: it starts SubRead with `space.subread.app.action.ALIGN`, the two
+files as extras, and reads the subtitles from the result. The other app needs no
+code of SubRead and no speech model of its own. The contract, with the extras
+and the answer, is in [docs/intent-api.md](docs/intent-api.md).
+
 ## Layout
 
 | Path | What |
