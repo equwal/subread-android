@@ -3,6 +3,7 @@ package space.subread.core
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -150,6 +151,22 @@ class BookTest {
     fun epubWithoutAUsablePackageFileStillYieldsItsText() {
         val bytes = epub("b.html" to page("<p>two</p>"), "a.html" to page("<p>one</p>"))
         assertEquals(listOf("one", "two"), BookText.read(ByteArrayInputStream(bytes), "x.epub"))
+    }
+
+    @Test
+    fun theCoverIsTheImageNamedCoverOrElseTheLargestImage() {
+        val small = "c".repeat(2000)
+        val large = "p".repeat(9000)
+        val named = epub("OEBPS/images/plate.jpg" to large, "OEBPS/images/Cover.jpg" to small, "OEBPS/a.xhtml" to page("<p>x</p>"))
+        assertEquals(small, BookText.cover(named.inputStream())!!.decodeToString())
+        val unnamed = epub("OEBPS/images/1.png" to small, "OEBPS/images/2.png" to large, "OEBPS/images/dot.gif" to "g".repeat(99999))
+        assertEquals(large, BookText.cover(unnamed.inputStream())!!.decodeToString())
+    }
+
+    @Test
+    fun aBookWithNoPictureHasNoCover() {
+        assertNull(BookText.cover(epub("a.xhtml" to page("<p>x</p>"), "bullet.png" to "tiny").inputStream()))
+        assertNull(BookText.cover("plain text, not a zip".byteInputStream()))
     }
 
     @Test

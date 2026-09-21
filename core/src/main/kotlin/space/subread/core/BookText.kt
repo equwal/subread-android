@@ -41,6 +41,27 @@ object BookText {
         return order.flatMap { path -> entries[path]?.let(::page) ?: emptyList() }
     }
 
+    /**
+     * The cover of an epub: the image with "cover" in its name, or else the
+     * largest image. This works on malformed epubs too, where the package file
+     * does not name a cover. Null for a book that is not an epub.
+     */
+    fun cover(input: InputStream): ByteArray? {
+        var best: ByteArray? = null
+        var named: ByteArray? = null
+        ZipInputStream(input).use { zip ->
+            while (true) {
+                val e = zip.nextEntry ?: break
+                val name = e.name.lowercase()
+                if (e.isDirectory || !(name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") || name.endsWith(".webp"))) continue
+                val bytes = zip.readBytes()
+                if (bytes.size > (best?.size ?: 1023)) best = bytes
+                if ("cover" in name.substringAfterLast('/') && bytes.size > (named?.size ?: 1023)) named = bytes
+            }
+        }
+        return named ?: best
+    }
+
     private fun isPage(name: String) =
         name.endsWith(".xhtml", true) || name.endsWith(".html", true) || name.endsWith(".htm", true)
 
