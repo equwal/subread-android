@@ -1,0 +1,108 @@
+name: Build
+
+"on":
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Test the engine, build the APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      CMAKE_VERSION: "3.31.6"
+      NDK_VERSION: "29.0.14206865"
+      # The speech model is not in git (43 MB). Pinned by hash, so the build
+      # fails loudly if what is served ever changes.
+      MODEL_URL: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q8_0.bin
+      MODEL_SHA256: c2085835d3f50733e2ff6e4b41ae8a2b8d8110461e18821b09a15c40c42d1cca
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android build tools
+        run: |
+          set -euo pipefail
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" \
+            "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore the speech model
+        id: model
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/assets/models
+          key: model-${{ env.MODEL_SHA256 }}
+
+      - name: Download the speech model
+        if: steps.model.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets/models
+          curl -fsSL --retry 3 -o app/src/main/assets/models/ggml-tiny-q8_0.bin "${MODEL_URL}"
+
+      - name: Verify the speech model
+        run: echo "${MODEL_SHA256}  app/src/main/assets/models/ggml-tiny-q8_0.bin" | sha256sum -c -
+
+      - name: Test the alignment engine
+        run: ./gradlew --no-daemon :core:test
+
+      - name: Unpack the signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.SUBREAD_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          if [ -n "${KEYSTORE_B64}" ]; then
+            echo "${KEYSTORE_B64}" | base64 -d > "${RUNNER_TEMP}/subread.jks"
+            echo "SUBREAD_KEYSTORE_FILE=${RUNNER_TEMP}/subread.jks" >> "${GITHUB_ENV}"
+          else
+            echo "::warning::No signing key configured; the APK will be unsigned and will not install."
+          fi
+
+      - name: Build the APK
+        env:
+          SUBREAD_KEYSTORE_PASSWORD: ${{ secrets.SUBREAD_KEYSTORE_PASSWORD }}
+        run: ./gradlew --no-daemon :app:assembleRelease -PversionCode=${{ github.run_number }}
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: subread-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            core/build/reports/tests
+            app/build/outputs/logs
+          if-no-files-found: ignore
