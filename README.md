@@ -83,3 +83,9 @@ Android 8+, a 64-bit ARM processor with ARMv8.2 half-precision and dot-product
 instructions (anything from 2018 on). Transcription runs at a small multiple of
 real time, so a long book takes hours. The job runs only while the app is open
 and keeps the screen on. An interrupted job continues from its last finished chunk.
+
+## Licence
+
+AGPL-3.0: see `LICENSE`. You may use, change and host this, and you must give
+your users the source of what you host. `NOTICE` has the licences of the work
+this is built on (SubPlz, whisper.cpp, Whisper).
