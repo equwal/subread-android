@@ -1,0 +1,1 @@
+When another app asks for subtitles that SubRead made before, the screen stays open, says why the job was so fast, and has a button for the way back. Before, it opened and closed at once.
