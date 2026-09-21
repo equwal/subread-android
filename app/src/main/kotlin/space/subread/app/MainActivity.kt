@@ -1,10 +1,8 @@
 package space.subread.app
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -32,6 +30,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,11 +38,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import space.subread.app.job.AlignService
 import space.subread.app.job.Job
 import space.subread.app.job.JobStatus
 import space.subread.app.job.Phase
@@ -51,6 +50,7 @@ import space.subread.app.job.TranscriptStore
 import space.subread.app.recents.RecentApps
 import space.subread.app.recents.RecentsActivity
 import java.io.File
+import kotlin.concurrent.thread
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,7 +113,14 @@ private fun App() {
             context.contentResolver.openOutputStream(dest)?.use { out -> srt.inputStream().use { it.copyTo(out) } }
         }
     }
-    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    // The job runs only while this screen is open. Keep the display on, or the
+    // system sleeps and stops the work. No background service: the job saves
+    // each finished chunk, so an interrupted run continues from that chunk.
+    val view = LocalView.current
+    DisposableEffect(status.running) {
+        view.keepScreenOn = status.running
+        onDispose { view.keepScreenOn = false }
+    }
 
     MaterialTheme(colorScheme = Paper) {
         Surface(Modifier.fillMaxSize()) {
@@ -158,16 +165,14 @@ private fun App() {
                         enabled = a != null && b != null,
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
-                            if (Build.VERSION.SDK_INT >= 33) {
-                                askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            }
-                            AlignService.start(context, a!!, b!!, language)
+                            val app = context.applicationContext
+                            thread(name = "subread-job") { Job.run(app, a!!, b!!, language) }
                         },
                     ) { Text(if (resumable) "Continue" else "Start") }
 
                     if (a == null || b == null) {
-                        Text("Pick both files to begin. A long book takes hours; it carries on with the " +
-                            "screen off, and picks up where it stopped if interrupted.",
+                        Text("Pick both files to begin. A long book takes hours. Keep this app open: the " +
+                            "screen stays on while it works. If it is interrupted, Start continues from there.",
                             style = MaterialTheme.typography.bodySmall)
                     }
                     Outcome(status,

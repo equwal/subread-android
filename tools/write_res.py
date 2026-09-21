@@ -20,8 +20,6 @@ w("xml/file_paths.xml", HEAD + """<paths>
 
 w("values/strings.xml", HEAD + """<resources>
     <string name="app_name">SubRead</string>
-    <string name="channel_progress">Progress</string>
-    <string name="stop">Stop</string>
     <string name="recents">Recent apps</string>
 </resources>
 """)

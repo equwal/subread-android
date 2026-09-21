@@ -63,5 +63,5 @@ gh release create v0.2.0 app/build/outputs/apk/release/app-release.apk --notes "
 
 Android 8+, a 64-bit ARM processor with ARMv8.2 half-precision and dot-product
 instructions (anything from 2018 on). Transcription runs at a small multiple of
-real time, so a long book takes hours; it carries on with the screen off and
-resumes where it stopped if interrupted.
+real time, so a long book takes hours. The job runs only while the app is open
+and keeps the screen on. An interrupted job continues from its last finished chunk.
