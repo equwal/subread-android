@@ -41,11 +41,15 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import space.subread.app.job.Job
 import space.subread.app.job.JobStatus
 import space.subread.app.job.Phase
 import space.subread.app.job.TranscriptStore
+import space.subread.app.video.VideoExport
+import space.subread.app.video.VideoMaker
+import space.subread.app.video.VideoStatus
 import java.io.File
 import kotlin.concurrent.thread
 
@@ -110,12 +114,24 @@ private fun App() {
             context.contentResolver.openOutputStream(dest)?.use { out -> srt.inputStream().use { it.copyTo(out) } }
         }
     }
+    val video by VideoExport.status.collectAsStateWithLifecycle()
+    val sizes = remember { VideoMaker.sizes() }
+    var videoSize by remember { mutableStateOf(sizes.firstOrNull { it.label == prefs.getString("video_size", null) } ?: sizes.first()) }
+    var videoFps by remember { mutableStateOf(prefs.getInt("video_fps", 1).takeIf { it in VideoMaker.FRAME_RATES } ?: 1) }
+    val pickVideoFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { folder ->
+        val a = audio
+        val srt = status.srt
+        if (folder != null && a != null && srt != null) {
+            val app = context.applicationContext
+            thread(name = "subread-video") { VideoExport.run(app, a, book, srt, folder, videoSize, videoFps) }
+        }
+    }
     // The job runs only while this screen is open. Keep the display on, or the
     // system sleeps and stops the work. No background service: the job saves
     // each finished chunk, so an interrupted run continues from that chunk.
     val view = LocalView.current
-    DisposableEffect(status.running) {
-        view.keepScreenOn = status.running
+    DisposableEffect(status.running || video.running) {
+        view.keepScreenOn = status.running || video.running
         onDispose { view.keepScreenOn = false }
     }
 
@@ -128,7 +144,8 @@ private fun App() {
                 Text("SubRead", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 Text(
                     "Times an audiobook against its ebook, on this device. Nothing is uploaded. " +
-                        "The result is an .srt for Hoshi Reader's read-along.",
+                        "The result is an .srt for Hoshi Reader's read-along, or a video + subtitles " +
+                        "that any video player plays.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 HorizontalDivider(color = Color.Black)
@@ -172,9 +189,20 @@ private fun App() {
                             "screen stays on while it works. If it is interrupted, Start continues from there.",
                             style = MaterialTheme.typography.bodySmall)
                     }
-                    Outcome(status,
+                    Outcome(status, video,
+                        videoOptions = {
+                            Choice("Size", sizes.map { it to it.label }, videoSize) {
+                                videoSize = it
+                                prefs.edit { putString("video_size", it.label) }
+                            }
+                            Choice("Frames a second", VideoMaker.FRAME_RATES.map { it to "$it" }, videoFps) {
+                                videoFps = it
+                                prefs.edit { putInt("video_fps", it) }
+                            }
+                        },
                         onSave = { status.srt?.let { saveSrt.launch(it.name) } },
-                        onShare = { status.srt?.let { share(context, it) } })
+                        onShare = { status.srt?.let { share(context, it) } },
+                        onVideo = { pickVideoFolder.launch(null) })
                 }
 
             }
@@ -213,6 +241,22 @@ private fun LanguagePick(code: String, enabled: Boolean, onPick: (String) -> Uni
 }
 
 @Composable
+private fun <T> Choice(label: String, options: List<Pair<T, String>>, chosen: T, onPick: (T) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        Box {
+            OutlinedButton(onClick = { open = true }) { Text(options.first { it.first == chosen }.second) }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                for ((value, name) in options) {
+                    DropdownMenuItem(text = { Text(name) }, onClick = { onPick(value); open = false })
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun Progress(status: JobStatus) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(status.detail, fontWeight = FontWeight.Bold)
@@ -231,7 +275,10 @@ private fun Progress(status: JobStatus) {
 }
 
 @Composable
-private fun Outcome(status: JobStatus, onSave: () -> Unit, onShare: () -> Unit) {
+private fun Outcome(
+    status: JobStatus, video: VideoStatus, videoOptions: @Composable () -> Unit,
+    onSave: () -> Unit, onShare: () -> Unit, onVideo: () -> Unit,
+) {
     when (status.phase) {
         Phase.DONE -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val rate = ((status.matchRate ?: 0.0) * 100).toInt()
@@ -250,6 +297,25 @@ private fun Outcome(status: JobStatus, onSave: () -> Unit, onShare: () -> Unit) 
             }
             Text("In Hoshi Reader: long-press the book, Match, and choose the saved .srt.",
                 style = MaterialTheme.typography.bodySmall)
+
+            HorizontalDivider(color = Color.Black)
+            Text("Video + subtitles", fontWeight = FontWeight.Bold)
+            Text("An .mp4 of the cover and the audio, with the .srt beside it. It plays with subtitles " +
+                "in any video player, and you can upload it to YouTube.", style = MaterialTheme.typography.bodySmall)
+            if (video.running) {
+                LinearProgressIndicator(
+                    progress = { video.fraction },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.Black, trackColor = Color(0xFFCCCCCC),
+                )
+                Text("Making the video: ${(video.fraction * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { videoOptions() }
+                Text("The picture is still, so more frames a second add almost nothing to the file. " +
+                    "A larger size adds a little.", style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(onClick = onVideo) { Text("Save video + .srt") }
+                if (video.message.isNotEmpty()) Text(video.message, style = MaterialTheme.typography.bodySmall)
+            }
         }
         Phase.FAILED -> Text("Failed: ${status.detail}", fontWeight = FontWeight.Bold)
         Phase.CANCELLED -> Text(status.detail)

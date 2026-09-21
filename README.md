@@ -4,6 +4,10 @@ Times an audiobook against its ebook, entirely on the phone, and writes the
 `.srt` that [Hoshi Reader](https://github.com/HuangAntimony/Hoshi-Reader-Android)'s
 read-along uses. Nothing is uploaded.
 
+It also makes **videos + subtitles which can be played with any video player or
+uploaded to YouTube**: an `.mp4` of the book's cover and the audio, with the
+`.srt` beside it under the same name.
+
 It is the same method as [subread.space](https://subread.space) and
 [SubPlz](https://github.com/kanjieater/SubPlz): a small speech model transcribes
 the audio, roughly; the transcript is aligned against the book; the subtitles
@@ -35,6 +39,20 @@ narrated - front matter, notes - instead of matching chapters.
 ```bash
 ./gradlew :core:test
 ```
+
+## The video
+
+The picture of the video does not change, so almost none of it is encoded.
+The device's H.264 encoder makes one key frame. `H264Still` writes each frame
+after it by hand: a P slice in which each macroblock is skipped, about ten
+bytes. One minute of these frames is written again and again with new time
+stamps. AAC audio is copied; other audio is encoded to AAC once.
+
+The result for a 10-hour book is about 60 MB of video at 720p and one frame a
+second. The frame rate adds about 20 bytes for each frame. The size of the
+picture changes only the key frame, one each minute. The sizes on offer are
+those the device has an encoder for (1080p in software, more with a hardware
+encoder). No Android encoder makes 4K or 8K H.264 today.
 
 ## Building the app
 

@@ -76,6 +76,8 @@ class StartButtonTest {
             assertEquals(Job.status.value.detail, Phase.DONE, Job.status.value.phase)
             compose.waitUntil(10_000) { !keepScreenOn() }
             compose.onNodeWithText("Save .srt").assertExists()
+            compose.onNodeWithText("Save video + .srt").assertExists()
+            compose.onNodeWithText("720p").assertExists()
             assertTrue((Job.status.value.matchRate ?: 0.0) > 0.8)
         }
     }
