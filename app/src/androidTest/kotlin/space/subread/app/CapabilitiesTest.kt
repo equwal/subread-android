@@ -46,6 +46,9 @@ class CapabilitiesTest {
             // The menu holds the sizes of this device.
             assertTrue(compose.onAllNodesWithText(VideoMaker.sizes().last().label).fetchSemanticsNodes().isNotEmpty())
             compose.onNodeWithText("Start").assertExists().assertIsNotEnabled()      // nothing is picked
+            // The Ko-fi link is in each build but the one for Google Play (-PplayStore=true).
+            val link = compose.onAllNodesWithText("Support on Ko-fi").fetchSemanticsNodes().size
+            assertTrue(link == if (BuildConfig.DONATE_LINK) 1 else 0)
         }
     }
 }

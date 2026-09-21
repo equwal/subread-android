@@ -82,6 +82,15 @@ gh release create v0.2.0 app/build/outputs/apk/release/app-release.apk --notes "
 
 `versionCode` must go up every release, or Android refuses the update.
 
+### Google Play
+
+```bash
+./gradlew :app:bundleRelease -PplayStore=true
+```
+
+`-PplayStore=true` leaves the Ko-fi link out. Each other build has it. The texts,
+the graphics and the answers to the Console's questions are in `play/`.
+
 ### F-Droid
 
 The build has what F-Droid asks for: free licences only, no network at build

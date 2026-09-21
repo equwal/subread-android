@@ -360,6 +360,17 @@ private fun Outputs(
             if (video.message.isNotEmpty()) Text(video.message, style = MaterialTheme.typography.bodySmall)
         }
         if (!done) Text("The save buttons work when the job is done.", style = MaterialTheme.typography.bodySmall)
+
+        if (BuildConfig.DONATE_LINK) {
+            HorizontalDivider(color = Color.Black)
+            Text("SubRead is free and has no ads. If it helps you, you can support its development.",
+                style = MaterialTheme.typography.bodySmall)
+            val context = LocalContext.current
+            // Opens the browser. The app itself still has no network permission.
+            OutlinedButton(onClick = {
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/truex"))) }
+            }) { Text("Support on Ko-fi") }
+        }
     }
 }
 
