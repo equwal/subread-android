@@ -49,6 +49,8 @@ class CapabilitiesTest {
             // The Ko-fi link is in each build but the one for Google Play (-PplayStore=true).
             val link = compose.onAllNodesWithText("Support on Ko-fi").fetchSemanticsNodes().size
             assertTrue(link == if (BuildConfig.DONATE_LINK) 1 else 0)
+            val library = compose.onAllNodesWithText("Open honjimaku.com").fetchSemanticsNodes().size
+            assertTrue(library == if (BuildConfig.HONJIMAKU_LINK) 1 else 0)
         }
     }
 }

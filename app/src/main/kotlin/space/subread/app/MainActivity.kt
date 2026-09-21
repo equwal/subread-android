@@ -339,6 +339,17 @@ private fun Outputs(
             Button(onClick = onSave, enabled = done) { Text("Save .srt") }
             OutlinedButton(onClick = onShare, enabled = done) { Text("Share") }
         }
+        if (BuildConfig.HONJIMAKU_LINK) {
+            val context = LocalContext.current
+            Text("Japanese book? honjimaku.com is a free library of subtitles for Japanese audiobooks. " +
+                "Save the .srt, then add it there, so that other learners do not have to make it again. " +
+                "The subtitles hold the words of the book: share them only if you may.",
+                style = MaterialTheme.typography.bodySmall)
+            // Opens the browser. The app itself still has no network permission.
+            OutlinedButton(onClick = {
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://honjimaku.com/"))) }
+            }) { Text("Open honjimaku.com") }
+        }
 
         HorizontalDivider(color = Color.Black)
         Text("Video + subtitles", fontWeight = FontWeight.Bold)

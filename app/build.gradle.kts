@@ -28,14 +28,16 @@ android {
         minSdk = 26
         targetSdk = 36
         // Plain numbers, in this file: F-Droid reads them from here to find a new release.
-        versionCode = 8
-        versionName = "0.7.0"
+        versionCode = 9
+        versionName = "0.8.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // A link to the Ko-fi page. Google Play is not given it (-PplayStore=true): its
         // rules on payments outside the store are read differently by each reviewer, and
         // a first listing is not the place to find out. F-Droid and GitHub builds have it.
         buildConfigField("boolean", "DONATE_LINK", (providers.gradleProperty("playStore").orNull != "true").toString())
+        // A link to honjimaku.com, a library of subtitles that users share. Not for Google Play either.
+        buildConfigField("boolean", "HONJIMAKU_LINK", (providers.gradleProperty("playStore").orNull != "true").toString())
 
         // Every phone worth transcribing on is 64-bit ARM; the speech library
         // is built for ARMv8.2 specifically (see src/main/cpp/CMakeLists.txt).
