@@ -46,6 +46,19 @@ still builds.
 
 The release key is not in the repository; CI reads it from Actions secrets.
 
+## Releases
+
+Each release is a tag (`vMAJOR.MINOR.PATCH`) and a GitHub release with the signed
+APK attached. The tag is the app's `versionName`:
+
+```bash
+./gradlew :app:assembleRelease -PversionName=0.2.0 -PversionCode=2
+git tag -a v0.2.0 -m "what changed" && git push origin main --tags
+gh release create v0.2.0 app/build/outputs/apk/release/app-release.apk --notes "what changed"
+```
+
+`versionCode` must go up every release, or Android refuses the update.
+
 ## Requirements
 
 Android 8+, a 64-bit ARM processor with ARMv8.2 half-precision and dot-product
