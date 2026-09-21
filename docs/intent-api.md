@@ -64,6 +64,11 @@ The job takes about a third of the length of the audio on a mid-range device.
 SubRead keeps what it has transcribed, so asking again for the same audio file
 continues and does not start over.
 
+When the subtitles are ready in less than 3 seconds (SubRead did this audiobook
+before), SubRead does not close by itself. The screen says why the job was so
+fast, and a button returns to the calling app with the same `RESULT_OK` answer.
+A screen that opens and closes at once looks like a fault.
+
 ## The subtitles
 
 SubRip, UTF-8, one cue for each phrase the narrator says, times on the clock of

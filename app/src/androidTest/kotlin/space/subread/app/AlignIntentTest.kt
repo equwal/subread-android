@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
@@ -94,6 +95,21 @@ class AlignIntentTest {
             assertTrue("language $language", language != null && language.matches(Regex("[a-z]{2,3}")))
         }
         assertEquals("the ask must not change what the user picked", picks, savePicks())
+
+        // The same ask again. SubRead has the work of the first job, so the subtitles are ready in
+        // less than a second. On a tablet the screen opened and closed at once, and the user
+        // took it for a fault. Now the screen stays, says why, and has a button for the way back.
+        ActivityScenario.launchActivityForResult<MainActivity>(ask(audio, book, "auto")).use { scenario ->
+            compose.waitUntil(60_000) { Job.status.value.phase == Phase.DONE }
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithText("ready at once", substring = true).fetchSemanticsNodes().isNotEmpty()
+            }
+            assertTrue("the screen closed by itself", scenario.state != Lifecycle.State.DESTROYED)
+            compose.onNodeWithText("Back to", substring = true).performClick()
+            compose.waitUntil(10_000) { scenario.state == Lifecycle.State.DESTROYED }
+            assertEquals(Activity.RESULT_OK, scenario.result.resultCode)
+            assertNotNull("no Uri in the answer", scenario.result.resultData.data)
+        }
     }
 
     @Test

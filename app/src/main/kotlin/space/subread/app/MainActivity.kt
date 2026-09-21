@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -72,14 +73,25 @@ class MainActivity : ComponentActivity() {
     /** True when this screen started the job for [ask]. It survives a rotation. */
     private var started = false
 
+    /** When the job for [ask] started, on the clock of SystemClock.elapsedRealtime. */
+    private var takenAt = 0L
+
+    /**
+     * True when the answer is set and the screen stays for the user to read it. A job that
+     * SubRead did before is done in less than a second; to open and close that fast looks
+     * like a fault. It survives a rotation.
+     */
+    private var ready by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         started = savedInstanceState?.getBoolean(STARTED) == true
+        ready = savedInstanceState?.getBoolean(READY) == true
         val refused = savedInstanceState?.getString(REFUSED)
         // A rotation must not turn a refusal into a second try.
         if (refused != null) refuse(refused) else take(intent)
         val asker = asker()
-        setContent { App(ask, notice, asker, ::answer) }
+        setContent { App(ask, notice, asker, ::answer, ready, ::finish) }
     }
 
     /** The screen is singleTop, so a second ask arrives here, not in a new screen. */
@@ -92,6 +104,7 @@ class MainActivity : ComponentActivity() {
         }
         setIntent(intent)
         started = false
+        ready = false
         notice = null
         take(intent)
     }
@@ -99,6 +112,7 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(STARTED, started)
+        outState.putBoolean(READY, ready)
         (ask as? AlignRequest.Refused)?.let { outState.putString(REFUSED, it.error) }
     }
 
@@ -124,6 +138,7 @@ class MainActivity : ComponentActivity() {
         // rotation the job is already there, so do not start a second one.
         if (!state.running && (!started || state.phase == Phase.IDLE)) {
             started = true
+            takenAt = SystemClock.elapsedRealtime()
             Job.clear()
             val app = applicationContext
             val language = read.language
@@ -163,7 +178,7 @@ class MainActivity : ComponentActivity() {
                 .putExtra(AlignContract.EXTRA_MATCH_RATE, status.matchRate ?: 0.0)
                 .putExtra(AlignContract.EXTRA_LANGUAGE, AlignRequests.languageOf(srt.name, asked)),
         )
-        finish()
+        if (ready || SystemClock.elapsedRealtime() - takenAt < QUICK_ANSWER_MS) ready = true else finish()
     }
 
     /** The name of the app that asked, for the screen. */
@@ -183,6 +198,10 @@ class MainActivity : ComponentActivity() {
     private companion object {
         const val STARTED = "ask_started"
         const val REFUSED = "ask_refused"
+        const val READY = "ask_ready"
+
+        /** A job that is done sooner than this was done before. The screen stays. */
+        const val QUICK_ANSWER_MS = 3_000L
     }
 }
 
@@ -214,6 +233,8 @@ private fun App(
     notice: String? = null,
     asker: String = "",
     onAnswer: (JobStatus, String) -> Unit = { _, _ -> },
+    ready: Boolean = false,
+    onBack: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("picks", Context.MODE_PRIVATE) }
@@ -298,7 +319,8 @@ private fun App(
                     HorizontalDivider(color = Color.Black)
                     Asked(asker, ask, notice,
                         audio?.let { TranscriptStore.describe(context, it).first },
-                        book?.let { TranscriptStore.describe(context, it).first })
+                        book?.let { TranscriptStore.describe(context, it).first },
+                        ready, onBack)
                 }
                 HorizontalDivider(color = Color.Black)
 
@@ -369,7 +391,10 @@ private fun App(
 
 /** Who asked for subtitles, for which files, and what SubRead does with the ask. */
 @Composable
-private fun Asked(asker: String, ask: AlignRequest, notice: String?, audio: String?, book: String?) {
+private fun Asked(
+    asker: String, ask: AlignRequest, notice: String?, audio: String?, book: String?,
+    ready: Boolean, onBack: () -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         when (ask) {
             is AlignRequest.Accepted -> {
@@ -377,8 +402,14 @@ private fun Asked(asker: String, ask: AlignRequest, notice: String?, audio: Stri
                 Text("Audio: ${audio ?: ask.audio}", style = MaterialTheme.typography.bodySmall)
                 Text("Book: ${book ?: ask.book}", style = MaterialTheme.typography.bodySmall)
                 Text("Language: ${ask.language}", style = MaterialTheme.typography.bodySmall)
-                Text("SubRead sends the .srt back to $asker when the job is done. " +
-                    "Stop, or Back, sends nothing.", style = MaterialTheme.typography.bodySmall)
+                if (ready) {
+                    Text("The subtitles were ready at once: SubRead had the work for this audiobook " +
+                        "from an earlier job.", style = MaterialTheme.typography.bodySmall)
+                    Button(onClick = onBack) { Text("Back to $asker with the .srt") }
+                } else {
+                    Text("SubRead sends the .srt back to $asker when the job is done. " +
+                        "Stop, or Back, sends nothing.", style = MaterialTheme.typography.bodySmall)
+                }
             }
             is AlignRequest.Refused -> {
                 Text("$asker asked for subtitles, and SubRead cannot do it", fontWeight = FontWeight.Bold)
