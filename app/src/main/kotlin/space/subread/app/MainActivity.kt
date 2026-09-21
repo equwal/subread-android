@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import space.subread.app.job.Job
 import space.subread.app.job.JobStatus
@@ -347,7 +348,7 @@ private fun Outputs(
                 style = MaterialTheme.typography.bodySmall)
             // Opens the browser. The app itself still has no network permission.
             OutlinedButton(onClick = {
-                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://honjimaku.com/"))) }
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, "https://honjimaku.com/".toUri())) }
             }) { Text("Open honjimaku.com") }
         }
 
@@ -379,7 +380,7 @@ private fun Outputs(
             val context = LocalContext.current
             // Opens the browser. The app itself still has no network permission.
             OutlinedButton(onClick = {
-                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/truex"))) }
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, "https://ko-fi.com/truex".toUri())) }
             }) { Text("Support on Ko-fi") }
         }
     }
