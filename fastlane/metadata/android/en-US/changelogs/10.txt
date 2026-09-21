@@ -1,0 +1,1 @@
+Another app can now ask SubRead for the subtitles of a book and get the .srt back. The screen says which app asked and for which files, and the job runs and stops as usual. See docs/intent-api.md.
