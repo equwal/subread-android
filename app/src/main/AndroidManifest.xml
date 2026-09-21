@@ -1,10 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- The optional recent-apps switcher. Not a runtime permission: the user
+         grants it by hand under Settings > Usage access, or not at all. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Needed since Android 11 to see other apps' names, icons and launch intents. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="false"
@@ -23,6 +36,52 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The recent-apps switcher. Reachable three ways once switched on in
+             the app: its own launcher icon, a quick-settings tile, and - for
+             anything that maps a hardware key or gesture to an intent - the
+             action space.subread.app.RECENTS (or as the device's assist app). -->
+        <activity
+            android:name=".recents.RecentsActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:noHistory="true"
+            android:taskAffinity="space.subread.app.recents"
+            android:theme="@style/Theme.SubRead">
+            <intent-filter>
+                <action android:name="space.subread.app.RECENTS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity-alias
+            android:name=".recents.RecentsLauncherAlias"
+            android:enabled="false"
+            android:exported="true"
+            android:label="@string/recents"
+            android:targetActivity=".recents.RecentsActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <service
+            android:name=".recents.RecentsTile"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@drawable/ic_notification"
+            android:label="@string/recents"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <!-- Special use, not dataSync or mediaProcessing: those are stopped by
              the system after six hours, and a long book takes longer. -->
