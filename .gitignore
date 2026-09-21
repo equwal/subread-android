@@ -15,8 +15,6 @@ core/src/test/resources/golden-local/
 # On-device test media. Bring your own pair; the test skips without it.
 app/src/androidTest/assets/local/
 
-# Downloaded at build time, never committed.
-app/src/main/assets/models/
 
 # Python byte code
 __pycache__/

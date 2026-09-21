@@ -57,25 +57,40 @@ encoder). No Android encoder makes 4K or 8K H.264 today.
 ## Building the app
 
 CI builds it (`.github/workflows/build.yml`): the APK is an artifact of every
-push to `main`. Locally it needs the Android SDK, NDK 29 and CMake 3.31, and the
-speech model at `app/src/main/assets/models/ggml-tiny-q8_0.bin` (the workflow has
-the URL and checksum). Without an SDK, Gradle leaves `:app` out and `:core`
-still builds.
+push to `main`. Locally it needs the Android SDK, NDK 29 and CMake 3.31. Without
+an SDK, Gradle leaves `:app` out and `:core` still builds.
+
+The speech model (`app/src/main/assets/models/ggml-tiny-q8_0.bin`, 43 MB, MIT
+licence) is in the repository. It is the file of the whisper.cpp project, and
+the workflow checks its hash. It is in git and not downloaded by the build, so
+that a build needs no network: F-Droid asks for that, and the app itself has no
+network permission.
 
 The release key is not in the repository; CI reads it from Actions secrets.
 
 ## Releases
 
 Each release is a tag (`vMAJOR.MINOR.PATCH`) and a GitHub release with the signed
-APK attached. The tag is the app's `versionName`:
+APK attached. Set `versionName` (the tag without the `v`) and `versionCode` in
+`app/build.gradle.kts` first, and write `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`:
 
 ```bash
-./gradlew :app:assembleRelease -PversionName=0.2.0 -PversionCode=2
+./gradlew :app:assembleRelease
 git tag -a v0.2.0 -m "what changed" && git push origin main --tags
 gh release create v0.2.0 app/build/outputs/apk/release/app-release.apk --notes "what changed"
 ```
 
 `versionCode` must go up every release, or Android refuses the update.
+
+### F-Droid
+
+The build has what F-Droid asks for: free licences only, no network at build
+time, no Google dependency list in the APK, and the version as plain numbers in
+the build file. F-Droid reads the listing from `fastlane/metadata/android/`, and
+finds new releases by their tags. `fdroid/space.subread.app.yml` is the recipe
+for a merge request to [fdroiddata](https://gitlab.com/fdroid/fdroiddata).
+F-Droid signs its builds with its own key, so an install from F-Droid and one
+from GitHub or Google Play do not update each other.
 
 ## Requirements
 

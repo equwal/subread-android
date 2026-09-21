@@ -21,9 +21,7 @@ jobs:
     env:
       CMAKE_VERSION: "3.31.6"
       NDK_VERSION: "29.0.14206865"
-      # The speech model is not in git (43 MB). Pinned by hash, so the build
-      # fails loudly if what is served ever changes.
-      MODEL_URL: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q8_0.bin
+      # The speech model is in git. The hash says that it is the file of the whisper.cpp project.
       MODEL_SHA256: c2085835d3f50733e2ff6e4b41ae8a2b8d8110461e18821b09a15c40c42d1cca
 
     steps:
@@ -53,20 +51,6 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Restore the speech model
-        id: model
-        uses: actions/cache@v4
-        with:
-          path: app/src/main/assets/models
-          key: model-${{ env.MODEL_SHA256 }}
-
-      - name: Download the speech model
-        if: steps.model.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          mkdir -p app/src/main/assets/models
-          curl -fsSL --retry 3 -o app/src/main/assets/models/ggml-tiny-q8_0.bin "${MODEL_URL}"
-
       - name: Verify the speech model
         run: echo "${MODEL_SHA256}  app/src/main/assets/models/ggml-tiny-q8_0.bin" | sha256sum -c -
 
@@ -88,7 +72,7 @@ jobs:
       - name: Build the APK
         env:
           SUBREAD_KEYSTORE_PASSWORD: ${{ secrets.SUBREAD_KEYSTORE_PASSWORD }}
-        run: ./gradlew --no-daemon :app:assembleRelease -PversionCode=${{ github.run_number }}
+        run: ./gradlew --no-daemon :app:assembleRelease
 
       - name: Upload the APK
         uses: actions/upload-artifact@v4

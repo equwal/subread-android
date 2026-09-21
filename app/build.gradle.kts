@@ -16,12 +16,20 @@ android {
     compileSdk = 36
     ndkVersion = "29.0.14206865"
 
+    // No list of dependencies, encrypted for Google alone, inside the app: F-Droid
+    // does not accept a part of the app that nobody else can read.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     defaultConfig {
         applicationId = "space.subread.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = (providers.gradleProperty("versionCode").orNull ?: "1").toInt()
-        versionName = providers.gradleProperty("versionName").orNull ?: "0.1.0"
+        // Plain numbers, in this file: F-Droid reads them from here to find a new release.
+        versionCode = 7
+        versionName = "0.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Every phone worth transcribing on is 64-bit ARM; the speech library

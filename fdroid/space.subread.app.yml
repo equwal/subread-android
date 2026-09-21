@@ -1,0 +1,33 @@
+# For https://gitlab.com/fdroid/fdroiddata : copy to metadata/space.subread.app.yml
+Categories:
+  - Reading
+  - Multimedia
+License: AGPL-3.0-only
+AuthorName: equwal
+WebSite: https://subread.space
+SourceCode: https://github.com/equwal/subread-android
+IssueTracker: https://github.com/equwal/subread-android/issues
+Changelog: https://github.com/equwal/subread-android/releases
+
+AutoName: SubRead
+
+RepoType: git
+Repo: https://github.com/equwal/subread-android.git
+
+Builds:
+  - versionName: 0.6.0
+    versionCode: 7
+    commit: v0.6.0
+    subdir: app
+    submodules: true
+    sudo:
+      - apt-get update
+      - apt-get install -y cmake ninja-build
+    gradle:
+      - yes
+    ndk: 29.0.14206865
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.6.0
+CurrentVersionCode: 7

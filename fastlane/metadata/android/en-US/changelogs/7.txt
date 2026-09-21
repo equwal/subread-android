@@ -1,0 +1,1 @@
+The listing and the build now fit F-Droid: the version is in the build file, the speech model is in the repository, and the app holds no dependency list that only Google can read. No change to what the app does.
