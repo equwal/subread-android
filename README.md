@@ -34,6 +34,7 @@ and the answer, is in [docs/intent-api.md](docs/intent-api.md).
 | `app/` | The Android app: audio decoding, the whisper.cpp bridge, the long-running job, the UI |
 | `third_party/whisper.cpp` | Pinned submodule |
 | `tools/make_golden.py` | Generates test fixtures by running the reference Python implementation |
+| `tools/make_synthetic_golden.py` | The same, for a language without a recorded transcript: makes one from a public-domain text (en, pt, es, ru fixtures) |
 
 ## The engine
 
