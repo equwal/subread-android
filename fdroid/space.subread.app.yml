@@ -1,7 +1,6 @@
-# For https://gitlab.com/fdroid/fdroiddata : copy to metadata/space.subread.app.yml
 Categories:
-  - Reading
   - Multimedia
+  - Reading
 License: AGPL-3.0-only
 AuthorName: equwal
 WebSite: https://subread.space
@@ -26,7 +25,23 @@ Builds:
       - apt-get install -y cmake ninja-build
     gradle:
       - yes
+    scanignore:
+      - app/src/main/assets/models/ggml-tiny-q8_0.bin
+    scandelete:
+      - core/src/test/resources/aozora/789_ruby_5639.zip
+      - third_party/whisper.cpp/bindings
+      - third_party/whisper.cpp/examples
+      - third_party/whisper.cpp/models
     ndk: 29.0.14206865
+
+MaintainerNotes: |-
+  app/src/main/assets/models/ggml-tiny-q8_0.bin is the OpenAI Whisper "tiny"
+  speech model (MIT), converted to the ggml format with
+  third_party/whisper.cpp/models/convert-pt-to-ggml.py and quantized with
+  whisper.cpp's quantize tool. It is data, not code. The app has no network
+  permission, so it cannot download the model at run time.
+  third_party/whisper.cpp/{bindings,examples,models} are not part of the build:
+  app/src/main/cpp/CMakeLists.txt sets WHISPER_BUILD_EXAMPLES=OFF.
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
