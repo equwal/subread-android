@@ -11,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.core.content.IntentCompat
@@ -383,6 +385,11 @@ private fun App(
                     onShare = { status.srt?.let { share(context, it) } },
                     onVideo = { pickVideoFolder.launch(null) })
 
+                // The Google Play build (-PplayStore=true) has no Ko-fi link, and no More apps either.
+                if (BuildConfig.DONATE_LINK) {
+                    HorizontalDivider(color = Color.Black)
+                    MoreApps()
+                }
 
             }
         }
@@ -589,6 +596,26 @@ private fun Outputs(
             OutlinedButton(onClick = {
                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, "https://ko-fi.com/truex".toUri())) }
             }) { Text("Support on Ko-fi") }
+        }
+    }
+}
+
+/** The other sites and apps of the same author. A tap opens the page in the browser. */
+@Composable
+private fun MoreApps() {
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("More apps", fontWeight = FontWeight.Bold)
+        for (app in MORE_APPS) {
+            Column(
+                Modifier.fillMaxWidth().clickable {
+                    // Opens the browser. The app itself still has no network permission.
+                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, app.url.toUri())) }
+                },
+            ) {
+                Text(app.name, style = MaterialTheme.typography.bodyMedium, textDecoration = TextDecoration.Underline)
+                Text(app.line, style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
 }
