@@ -28,8 +28,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Plain numbers, in this file: F-Droid reads them from here to find a new release.
-        versionCode = 11
-        versionName = "0.9.1"
+        versionCode = 12
+        versionName = "0.9.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // A link to the Ko-fi page. Google Play is not given it (-PplayStore=true): its
@@ -61,8 +61,11 @@ android {
     buildTypes {
         debug { applicationIdSuffix = ".debug" }
         release {
-            // Not shrunk yet: R8 rules want a device to be verified against.
-            isMinifyEnabled = false
+            // R8 removes unused code and resources. F-Droid asks for it. The JNI
+            // methods of Whisper keep their names through the default rules.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             if (signingReady) signingConfig = signingConfigs.getByName("release")
         }
     }
