@@ -46,3 +46,7 @@ add_subdirectory(${WHISPER_DIR} whisper EXCLUDE_FROM_ALL)
 add_library(subread_whisper SHARED whisper_jni.c)
 target_link_libraries(subread_whisper PRIVATE whisper log)
 target_link_options(subread_whisper PRIVATE -Wl,--gc-sections -Wl,--exclude-libs,ALL)
+# No GNU build ID. The linker makes it from the debug information, and that holds the
+# build folder of Gradle (.cxx/<hash>), whose name is different on each machine.
+# Without it, the stripped library is the same on the F-Droid build server.
+target_link_options(subread_whisper PRIVATE -Wl,--build-id=none)

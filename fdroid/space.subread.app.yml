@@ -16,9 +16,9 @@ Repo: https://github.com/equwal/subread-android.git
 Binaries: https://github.com/equwal/subread-android/releases/download/v%v/SubRead-%v.apk
 
 Builds:
-  - versionName: 0.9.2
-    versionCode: 12
-    commit: v0.9.2
+  - versionName: 0.9.3
+    versionCode: 13
+    commit: v0.9.3
     subdir: app
     submodules: true
     sudo:
@@ -48,5 +48,5 @@ MaintainerNotes: |-
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 0.9.2
-CurrentVersionCode: 12
+CurrentVersion: 0.9.3
+CurrentVersionCode: 13
