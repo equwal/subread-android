@@ -1,0 +1,1 @@
+The speech library no longer holds the version line of the compiler, so the F-Droid build is the same as the signed APK on GitHub. Nothing else changes.

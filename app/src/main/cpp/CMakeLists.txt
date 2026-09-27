@@ -15,13 +15,16 @@ set(WHISPER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/whisper.cpp)
 # Reproducible build: F-Droid builds this library again, on Linux and at another
 # path, and compares it with the signed APK. The maps remove the paths of the
 # build machine from the __FILE__ strings of ggml. -ffile-reproducible writes "/"
-# in them on Windows too. An empty GIT_EXE stops ggml from recording the git state
+# in them on Windows too. -fno-ident keeps the version line of the compiler out of
+# the .comment section: the clang of the Windows NDK writes another line than the
+# clang of the Linux NDK. An empty GIT_EXE stops ggml from recording the git state
 # of the checkout, which the F-Droid scanner changes.
 get_filename_component(SUBREAD_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../.." ABSOLUTE)
 get_filename_component(SUBREAD_TOOLCHAIN_BIN "${CMAKE_C_COMPILER}" DIRECTORY)
 get_filename_component(SUBREAD_TOOLCHAIN_ROOT "${SUBREAD_TOOLCHAIN_BIN}" DIRECTORY)
 add_compile_options(
     -ffile-reproducible
+    -fno-ident
     "-ffile-prefix-map=${SUBREAD_ROOT}=."
     "-ffile-prefix-map=${SUBREAD_TOOLCHAIN_ROOT}=toolchain")
 set(GIT_EXE "" CACHE FILEPATH "Not used: the build records no git state" FORCE)
